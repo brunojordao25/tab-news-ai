@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nossa Árvore Genealógica</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,400&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#fff7ec; --bg2:#fde6d3; --ink:#4a3428; --muted:#a08672;
+    --branch:#8fae7e; --branch-dark:#6f9560; --card:#fffdf9; --rose:#e57a8a;
+    --gold:#e8b04a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:var(--ink);
+    font-family:'Nunito',system-ui,sans-serif;
+    background:
+      radial-gradient(circle at 12% 18%, #ffffff80 0 90px, transparent 91px),
+      radial-gradient(circle at 88% 78%, #ffffff70 0 130px, transparent 131px),
+      linear-gradient(160deg,var(--bg1),var(--bg2));
+    background-attachment:fixed;
+    padding-bottom:230px;
+  }
+  header{text-align:center;padding:36px 16px 6px}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.8rem,4vw,2.8rem);margin:0}
+  h1 span{color:var(--rose)}
+  .sub{color:var(--muted);margin:6px 0 0;font-style:italic;font-family:'Fraunces',serif}
+  .toolbar{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .link{background:none;border:none;color:var(--muted);cursor:pointer;font:inherit;font-size:.85rem;text-decoration:underline}
+
+  .canvas{overflow-x:auto;padding:30px 20px 20px}
+  .tree{display:flex;justify-content:center;min-width:max-content;margin:0 auto}
+
+  /* estrutura da árvore */
+  .unit{display:flex;flex-direction:column;align-items:center}
+  .couple{display:flex;align-items:center;gap:0;position:relative}
+  .heart{
+    width:34px;height:34px;margin:0 -6px;z-index:2;display:grid;place-items:center;
+    font-size:20px;animation:beat 2.4s ease-in-out infinite;
+    filter:drop-shadow(0 2px 3px #e57a8a55);
+  }
+  @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+  .stem{width:2px;height:26px;background:var(--branch);border-radius:2px}
+  .kids{display:flex;justify-content:center}
+  .kid{position:relative;padding:26px 14px 0}
+  .kid::before,.kid::after{
+    content:'';position:absolute;top:0;width:50%;height:26px;
+    border-top:2px solid var(--branch);
+  }
+  .kid::before{right:50%}
+  .kid::after{left:50%;border-left:2px solid var(--branch);border-top-left-radius:16px}
+  .kid::before{border-right:2px solid var(--branch);border-top-right-radius:16px}
+  .kid:first-child::before,.kid:last-child::after{border-top:none;border-radius:0}
+  .kid:first-child::before{border-right:none}
+  .kid:last-child::after{border-left:2px solid var(--branch)}
+  .kid:last-child::after{border-top:none}
+  .kid:only-child::before{display:none}
+  .kid:only-child::after{border-top:none;border-radius:0}
+  /* ajustes para cantos arredondados nos extremos */
+  .kid:first-child:not(:only-child)::after{border-top:2px solid var(--branch);border-left:2px solid var(--branch);border-top-left-radius:16px}
+  .kid:last-child:not(:only-child)::before{border-top:2px solid var(--branch);border-right:2px solid var(--branch);border-top-right-radius:16px}
+  .kid:last-child:not(:only-child)::after{display:none}
+  .kid:first-child:not(:only-child)::before{display:none}
+
+  /* cartão */
+  .card{
+    width:150px;padding:16px 10px 12px;text-align:center;cursor:pointer;
+    background:var(--card);border-radius:22px;position:relative;
+    box-shadow:0 6px 18px #8a5a3a22, 0 0 0 2px #fff inset;
+    border:2px solid #f1dfcc;
+    transition:transform .2s, box-shadow .2s, border-color .2s;
+  }
+  .card:hover{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 12px 24px #8a5a3a30}
+  .card.sel{border-color:var(--gold);box-shadow:0 0 0 5px #e8b04a35,0 12px 24px #8a5a3a30}
+  .avatar{
+    width:68px;height:68px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;
+    font-size:34px;border:3px solid #fff;box-shadow:0 3px 8px #0002;
+  }
+  .name{font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;line-height:1.15;word-break:break-word}
+  .year{font-size:.78rem;color:var(--muted);margin-top:3px;min-height:1em}
+
+  /* painel de edição */
+  .panel{
+    position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    width:min(560px,calc(100vw - 24px));background:#fffdf9f2;backdrop-filter:blur(8px);
+    border-radius:24px;padding:16px 18px;border:2px solid #f1dfcc;
+    box-shadow:0 14px 40px #6b3f2540;
+  }
+  .panel.empty{text-align:center;color:var(--muted);font-style:italic;font-family:'Fraunces',serif;padding:18px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  label{display:flex;flex-direction:column;font-size:.75rem;color:var(--muted);font-weight:700;gap:3px;flex:1;min-width:110px}
+  label.small{flex:0 0 90px;min-width:90px}
+  input{
+    font:inherit;font-size:1rem;color:var(--ink);padding:8px 10px;border-radius:12px;
+    border:2px solid #efdcc6;background:#fff;outline:none;width:100%;
+  }
+  input:focus{border-color:var(--branch)}
+  .emojis{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 2px}
+  .emojis button{
+    font-size:20px;width:36px;height:36px;border-radius:50%;border:2px solid transparent;
+    background:#f8ece0;cursor:pointer;
+  }
+  .emojis button.on{border-color:var(--gold);background:#fff}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .btn{
+    font:inherit;font-weight:700;font-size:.88rem;padding:9px 14px;border-radius:999px;border:none;
+    cursor:pointer;color:#fff;background:var(--branch-dark);transition:transform .15s, filter .15s;
+  }
+  .btn:hover{transform:translateY(-2px);filter:brightness(1.07)}
+  .btn.rose{background:var(--rose)}
+  .btn.gold{background:var(--gold);color:#5a3d12}
+  .btn.ghost{background:#f1e4d6;color:var(--ink);margin-left:auto}
+  .btn.danger{background:#fff;color:#c0504d;border:2px solid #f2cfcb}
+  .btn[hidden]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Nossa <span>♥</span> Família</h1>
+  <p class="sub">Clique em alguém para editar, adicionar cônjuge ou filhos</p>
+  <div class="toolbar"><button class="link" id="reset">Recomeçar do zero</button></div>
+</header>
+
+<div class="canvas"><div class="tree" id="tree"></div></div>
+<div class="panel empty" id="panel">Selecione uma pessoa da árvore 🌳</div>
+
+<script>
+const KEY = 'arvore-genealogica-v1';
+const PALETTE = ['#cfe6c3','#f9d3d9','#d3e3f7','#fbe4b4','#e3d3f2','#ffd9c2','#c9eadf'];
+const EMOJIS = ['👨','👩','👦','👧','🧒','👴','👵','🧔','👱‍♀️','👨‍🦱','👩‍🦰','🧑','👶','🐶'];
+let uid = 0;
+const id = () => 'i' + Date.now().toString(36) + (uid++);
+const person = (name, emoji, year='') => ({id:id(), name, emoji, year});
+
+function defaultData(){
+  return {
+    id:id(),
+    people:[person('Celso','👨'), person('Suréia','👩')],
+    children:[
+      {id:id(), people:[person('Bruno','👦')], children:[]},
+      {id:id(), people:[person('Máisa','👧')], children:[]},
+    ]
+  };
+}
+let data; try{ data = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(e){}
+data = data || defaultData();
+let selected = null; // person id
+
+const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} };
+function colorFor(pid){ let h=0; for(const c of pid) h=(h*31+c.charCodeAt(0))>>>0; return PALETTE[h%PALETTE.length]; }
+
+function find(pid, node=data, parent=null){
+  for(const p of node.people) if(p.id===pid) return {node, parent, person:p};
+  for(const c of node.children){ const r=find(pid,c,node); if(r) return r; }
+  return null;
+}
+
+/* ---------- render ---------- */
+function card(p){
+  const el = document.createElement('div');
+  el.className = 'card' + (p.id===selected ? ' sel':'');
+  el.innerHTML = `<div class="avatar" style="background:${colorFor(p.id)}"></div>
+    <div class="name"></div><div class="year"></div>`;
+  el.querySelector('.avatar').textContent = p.emoji;
+  el.querySelector('.name').textContent = p.name || 'Sem nome';
+  el.querySelector('.year').textContent = p.year ? '✦ ' + p.year : '';
+  el.onclick = e => { e.stopPropagation(); selected = p.id; draw(); };
+  return el;
+}
+function unit(node){
+  const u = document.createElement('div'); u.className='unit';
+  const c = document.createElement('div'); c.className='couple';
+  c.appendChild(card(node.people[0]));
+  if(node.people[1]){
+    const h=document.createElement('div'); h.className='heart'; h.textContent='❤️'; c.appendChild(h);
+    c.appendChild(card(node.people[1]));
+  }
+  u.appendChild(c);
+  if(node.children.length){
+    const s=document.createElement('div'); s.className='stem'; u.appendChild(s);
+    const k=document.createElement('div'); k.className='kids';
+    node.children.forEach(ch=>{ const w=document.createElement('div'); w.className='kid'; w.appendChild(unit(ch)); k.appendChild(w); });
+    u.appendChild(k);
+  }
+  return u;
+}
+function draw(){
+  const t=document.getElementById('tree'); t.innerHTML=''; t.appendChild(unit(data));
+  save(); drawPanel();
+}
+
+/* ---------- diálogo próprio (confirm/alert não funcionam em iframe) ---------- */
+function ask(msg, okOnly=false){
+  return new Promise(res=>{
+    const o=document.createElement('div');
+    o.style.cssText='position:fixed;inset:0;background:#4a342866;display:grid;place-items:center;z-index:99';
+    o.innerHTML='<div style="background:#fffdf9;border-radius:22px;padding:22px;max-width:320px;text-align:center;box-shadow:0 14px 40px #0004"><p style="margin:0 0 16px"></p><div class="actions" style="justify-content:center"></div></div>';
+    o.querySelector('p').textContent=msg;
+    const a=o.querySelector('.actions');
+    const mk=(t,cls,v)=>{const b=document.createElement('button');b.className='btn '+cls;b.textContent=t;b.onclick=()=>{o.remove();res(v)};a.appendChild(b)};
+    if(!okOnly) mk('Cancelar','ghost',false);
+    mk(okOnly?'Ok':'Confirmar',okOnly?'':'danger',true);
+    document.body.appendChild(o);
+  });
+}
+
+/* ---------- painel ---------- */
+const panel = document.getElementById('panel');
+function drawPanel(){
+  const f = selected && find(selected);
+  if(!f){ selected=null; panel.className='panel empty'; panel.textContent='Selecione uma pessoa da árvore 🌳'; return; }
+  const {person:p, node, parent} = f;
+  panel.className='panel';
+  panel.innerHTML = `
+    <div class="row">
+      <label>Nome<input id="fName" maxlength="40"></label>
+      <label class="small">Nascimento<input id="fYear" maxlength="12" placeholder="ex: 1990"></label>
+    </div>
+    <div class="emojis" id="emojis"></div>
+    <div class="actions">
+      <button class="btn rose" id="addChild">+ Filho(a)</button>
+      <button class="btn gold" id="addPartner">+ Cônjuge</button>
+      <button class="btn danger" id="del">Remover</button>
+      <button class="btn ghost" id="close">Fechar</button>
+    </div>`;
+  const n=panel.querySelector('#fName'), y=panel.querySelector('#fYear');
+  n.value=p.name; y.value=p.year;
+  n.oninput=()=>{ p.name=n.value; refreshKeepFocus(); };
+  y.oninput=()=>{ p.year=y.value; refreshKeepFocus(); };
+  const em=panel.querySelector('#emojis');
+  EMOJIS.forEach(e=>{
+    const b=document.createElement('button'); b.textContent=e; if(e===p.emoji) b.className='on';
+    b.onclick=()=>{ p.emoji=e; draw(); }; em.appendChild(b);
+  });
+  panel.querySelector('#addPartner').hidden = node.people.length>1;
+  panel.querySelector('#addPartner').onclick=()=>{
+    const np=person('Novo cônjuge','🧑'); node.people.push(np); selected=np.id; draw();
+    focusName();
+  };
+  panel.querySelector('#addChild').onclick=()=>{
+    const np=person('Novo filho','🧒'); node.children.push({id:id(),people:[np],children:[]});
+    selected=np.id; draw(); focusName();
+  };
+  panel.querySelector('#del').onclick=()=>remove(f);
+  panel.querySelector('#close').onclick=()=>{ selected=null; draw(); };
+}
+function focusName(){ const n=document.getElementById('fName'); n.focus(); n.select(); }
+function refreshKeepFocus(){
+  // redesenha só a árvore, sem recriar o painel (mantém o foco do campo)
+  const t=document.getElementById('tree'); t.innerHTML=''; t.appendChild(unit(data)); save();
+}
+async function remove({node,parent,person:p}){
+  if(node.people.length>1){
+    if(!await ask(`Remover ${p.name}?`)) return;
+    node.people=node.people.filter(x=>x!==p); selected=node.people[0].id; return draw();
+  }
+  if(!parent){ await ask('Esta é a raiz da árvore. Edite o nome ou use "Recomeçar do zero".',true); return; }
+  const extra = node.children.length ? ' e todos os descendentes dela' : '';
+  if(!await ask(`Remover ${p.name}${extra}?`)) return;
+  parent.children=parent.children.filter(c=>c!==node); selected=null; draw();
+}
+
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.card') && !e.target.closest('.panel') && selected){ selected=null; draw(); }
+});
+document.getElementById('reset').onclick=async()=>{
+  if(!await ask('Apagar tudo e começar uma árvore nova?')) return;
+  data={id:id(),people:[person('Nome','🧑')],children:[]}; selected=data.people[0].id; draw(); focusName();
+};
+draw();
+</script>
+</body>
+</html>
